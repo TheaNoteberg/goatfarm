@@ -1,13 +1,24 @@
 import os
+import random
 # assign directory
 directory = 'terraform'
 newFileContent = ''
 # iterate over files in
 # that directory
+open('Combined.tf', 'w').close()
 for filename in os.listdir(directory):
     f = os.path.join(directory, filename)
     # checking if it is a file
-    if os.path.isfile(f):
+    if os.path.isdir(f):
+        list = os.listdir(f)
+        randomChoice = random.choice(list)
+        while os.path.isdir(randomChoice):
+            randomChoice = random.choice(list)
+        f = os.path.join(f,random.choice(list))
+        f = open(f, "r")
+        newFileContent = newFileContent +'\n'+ f.read()
+        f.close()
+    elif os.path.isfile(f):
         f = open(f, "r")
         newFileContent = newFileContent +'\n'+ f.read()
         f.close()

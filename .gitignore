@@ -30,6 +30,7 @@ override.tf.json
 
 **/*Config.tf*
 cloudgoat
+
 cloudgoat.pub
 terraform.tfstate
 terraform.tfstate.backup
