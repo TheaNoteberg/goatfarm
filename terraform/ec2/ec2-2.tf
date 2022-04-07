@@ -72,7 +72,7 @@ resource "aws_instance" "ec2-vulnerable-proxy-server" {
         delete_on_termination = true
     }
     provisioner "file" {
-      source = "../assets/proxy.com"
+      source = "./assets/proxy.com"
       destination = "/home/ubuntu/proxy.com"
       connection {
         type = "ssh"

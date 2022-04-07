@@ -8,15 +8,11 @@ resource "aws_iam_user" "cg-raynor" {
   }
 }
 
-resource "aws_iam_access_key" "cg-raynor" {
-  user = "${aws_iam_user.cg-raynor.name}"
-}
-
 #IAM User Policies
 resource "aws_iam_policy" "cg-raynor-policy" {
   name        = "cg-raynor-policy-${var.cgid}"
   description = "cg-raynor-policy"
-  policy      = "${file("./policies/v1.json")}"
+  policy      = "${file("./terraform/IAM/policies/v1.json")}"
 }
 
 #IAM Policy Attachments
@@ -25,8 +21,24 @@ resource "aws_iam_user_policy_attachment" "cg-raynor-attachment" {
   policy_arn = "${aws_iam_policy.cg-raynor-policy.arn}"
 }
 
-#IAM Instance Profile
-resource "aws_iam_instance_profile" "cg-ec2-instance-profile" {
-  name = "cg-ec2-instance-profile-${var.cgid}"
-  role = "${aws_iam_user.cg-raynor}"
+
+resource "null_resource" "cg-create-iam-user-policy-version-2" {
+  provisioner "local-exec" {
+      command = "aws iam create-policy-version --policy-arn ${aws_iam_policy.cg-raynor-policy.arn} --policy-document file://../assets/policies/v2.json --no-set-as-default --profile ${var.profile} --region ${var.region}"
+  }
+}
+resource "null_resource" "cg-create-iam-user-policy-version-3" {
+  provisioner "local-exec" {
+      command = "aws iam create-policy-version --policy-arn ${aws_iam_policy.cg-raynor-policy.arn} --policy-document file://../assets/policies/v3.json --no-set-as-default --profile ${var.profile} --region ${var.region}"
+  }
+}
+resource "null_resource" "cg-create-iam-user-policy-version-4" {
+  provisioner "local-exec" {
+      command = "aws iam create-policy-version --policy-arn ${aws_iam_policy.cg-raynor-policy.arn} --policy-document file://../assets/policies/v4.json --no-set-as-default --profile ${var.profile} --region ${var.region}"
+  }
+}
+resource "null_resource" "cg-create-iam-user-policy-version-5" {
+  provisioner "local-exec" {
+      command = "aws iam create-policy-version --policy-arn ${aws_iam_policy.cg-raynor-policy.arn} --policy-document file://../assets/policies/v5.json --no-set-as-default --profile ${var.profile} --region ${var.region}"
+  }
 }

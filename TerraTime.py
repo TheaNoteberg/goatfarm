@@ -12,9 +12,10 @@ for filename in os.listdir(directory):
     if os.path.isdir(f):
         list = os.listdir(f)
         randomChoice = random.choice(list)
-        while os.path.isdir(randomChoice):
+        while os.path.isdir(os.path.join(f,randomChoice)):
             randomChoice = random.choice(list)
-        f = os.path.join(f,random.choice(list))
+        
+        f = os.path.join(f,randomChoice)
         f = open(f, "r")
         newFileContent = newFileContent +'\n'+ f.read()
         f.close()

@@ -1,41 +1,4 @@
 
-#IAM Role
-resource "aws_iam_role" "cg-banking-WAF-Role" {
-  name = "cg-banking-WAF-Role-${var.cgid}"
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "ec2.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-EOF
-  tags = {
-      Name = "cg-banking-WAF-Role-${var.cgid}"
-      Stack = "${var.stack-name}"
-      Scenario = "${var.scenario-name}"
-  }
-}
-
-#IAM Role Policy Attachment
-resource "aws_iam_role_policy_attachment" "cg-banking-WAF-Role-policy-attachment-s3" {
-  role = "${aws_iam_role.cg-banking-WAF-Role.name}"
-  policy_arn = "${data.aws_iam_policy.s3-full-access.arn}"
-}
-
-#IAM Instance Profile
-resource "aws_iam_instance_profile" "cg-ec2-instance-profile" {
-  name = "cg-ec2-instance-profile-${var.cgid}"
-  role = "${aws_iam_role.cg-banking-WAF-Role.name}"
-}
-
 #Security Groups
 resource "aws_security_group" "cg-ec2-ssh-security-group" {
   name = "cg-ec2-ssh-${var.cgid}"
@@ -108,7 +71,7 @@ resource "aws_instance" "ec2-vulnerable-proxy-server" {
         delete_on_termination = true
     }
     provisioner "file" {
-      source = "../assets/proxy.com"
+      source = "./assets/proxy.com"
       destination = "/home/ubuntu/proxy.com"
       connection {
         type = "ssh"
@@ -158,7 +121,7 @@ resource "aws_s3_bucket" "cg-cardholder-data-bucket" {
 resource "aws_s3_bucket_object" "cardholder-data-primary" {
   bucket = "${aws_s3_bucket.cg-cardholder-data-bucket.id}"
   key = "cardholder_data_primary.csv"
-  source = "../assets/cardholder_data_primary.csv"
+  source = "./assets/cardholder_data_primary.csv"
   tags = {
     Name = "cardholder-data-${var.cgid}"
     Stack = "${var.stack-name}"
@@ -168,7 +131,7 @@ resource "aws_s3_bucket_object" "cardholder-data-primary" {
 resource "aws_s3_bucket_object" "cardholder-data-secondary" {
   bucket = "${aws_s3_bucket.cg-cardholder-data-bucket.id}"
   key = "cardholder_data_secondary.csv"
-  source = "../assets/cardholder_data_secondary.csv"
+  source = "./assets/cardholder_data_secondary.csv"
   tags = {
     Name = "cardholder-data-${var.cgid}"
     Stack = "${var.stack-name}"
@@ -178,7 +141,7 @@ resource "aws_s3_bucket_object" "cardholder-data-secondary" {
 resource "aws_s3_bucket_object" "cardholder-data-corporate" {
   bucket = "${aws_s3_bucket.cg-cardholder-data-bucket.id}"
   key = "cardholders_corporate.csv"
-  source = "../assets/cardholders_corporate.csv"
+  source = "./assets/cardholders_corporate.csv"
   tags = {
     Name = "cardholder-data-${var.cgid}"
     Stack = "${var.stack-name}"
@@ -188,7 +151,7 @@ resource "aws_s3_bucket_object" "cardholder-data-corporate" {
 resource "aws_s3_bucket_object" "goat" {
   bucket = "${aws_s3_bucket.cg-cardholder-data-bucket.id}"
   key = "goat.png"
-  source = "../assets/goat.png"
+  source = "./assets/goat.png"
   tags = {
     Name = "cardholder-data-${var.cgid}"
     Stack = "${var.stack-name}"
@@ -284,11 +247,11 @@ variable "region" {
 }
 #Required: CGID Variable for unique naming
 variable "cgid" {
-  default = "1"
+  default = "2"
 }
 #Required: User's Public IP Address(es)
 variable "cg_whitelist" {
-  default = ["78.73.169.65/32"]
+  default = ["94.255.131.115/32"]
 }
 #SSH Public Key
 variable "ssh-public-key-for-ec2" {
@@ -313,4 +276,40 @@ data "aws_caller_identity" "aws-account-id" {
 #S3 Full Access Policy
 data "aws_iam_policy" "s3-full-access" {
   arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+#IAM Role
+resource "aws_iam_role" "cg-banking-WAF-Role" {
+  name = "cg-banking-WAF-Role-${var.cgid}"
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+  tags = {
+      Name = "cg-banking-WAF-Role-${var.cgid}"
+      Stack = "${var.stack-name}"
+      Scenario = "${var.scenario-name}"
+  }
+}
+
+#IAM Role Policy Attachment
+resource "aws_iam_role_policy_attachment" "cg-banking-WAF-Role-policy-attachment-s3" {
+  role = "${aws_iam_role.cg-banking-WAF-Role.name}"
+  policy_arn = "${data.aws_iam_policy.s3-full-access.arn}"
+}
+
+#IAM Instance Profile
+resource "aws_iam_instance_profile" "cg-ec2-instance-profile" {
+  name = "cg-ec2-instance-profile-${var.cgid}"
+  role = "${aws_iam_role.cg-banking-WAF-Role.name}"
 }

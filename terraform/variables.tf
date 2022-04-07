@@ -9,11 +9,11 @@ variable "region" {
 }
 #Required: CGID Variable for unique naming
 variable "cgid" {
-  default = "1"
+  default = "2"
 }
 #Required: User's Public IP Address(es)
 variable "cg_whitelist" {
-  default = ["78.73.169.65/32"]
+  default = ["94.255.131.115/32"]
 }
 #SSH Public Key
 variable "ssh-public-key-for-ec2" {

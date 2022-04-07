@@ -1,4 +1,3 @@
-
 #Security Groups
 resource "aws_security_group" "cg-ec2-ssh-security-group" {
   name = "cg-ec2-ssh-${var.cgid}"
@@ -71,7 +70,7 @@ resource "aws_instance" "ec2-vulnerable-proxy-server" {
         delete_on_termination = true
     }
     provisioner "file" {
-      source = "../assets/proxy.com"
+      source = "./assets/proxy.com"
       destination = "/home/ubuntu/proxy.com"
       connection {
         type = "ssh"
