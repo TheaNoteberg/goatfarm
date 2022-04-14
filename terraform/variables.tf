@@ -13,7 +13,7 @@ variable "cgid" {
 }
 #Required: User's Public IP Address(es)
 variable "cg_whitelist" {
-  default = ["94.255.131.115/32"]
+  default = [""]
 }
 #SSH Public Key
 variable "ssh-public-key-for-ec2" {

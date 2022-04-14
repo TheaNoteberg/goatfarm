@@ -23,6 +23,7 @@ EOF
   }
 }
 
+
 #IAM Role Policy Attachment
 resource "aws_iam_role_policy_attachment" "cg-banking-WAF-Role-policy-attachment-s3" {
   role = "${aws_iam_role.cg-banking-WAF-Role.name}"

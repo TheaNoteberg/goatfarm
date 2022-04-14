@@ -1,4 +1,164 @@
 
+#Required: AWS Profile
+variable "profile" {
+  default ="cloudgoat"
+}
+
+#Required: AWS Region
+variable "region" {
+  default = "us-east-1"
+}
+#Required: CGID Variable for unique naming
+variable "cgid" {
+  default = "2"
+}
+#Required: User's Public IP Address(es)
+variable "cg_whitelist" {
+  default = ["2.248.172.120/32"]
+}
+#SSH Public Key
+variable "ssh-public-key-for-ec2" {
+  default = "cloudgoat.pub"
+}
+#SSH Private Key
+variable "ssh-private-key-for-ec2" {
+  default = "cloudgoat"
+}
+#Stack Name
+variable "stack-name" {
+  default = "CloudGoat"
+}
+#Scenario Name
+variable "scenario-name" {
+  default = "cloud-breach-s3"
+}
+#IAM Role
+resource "aws_iam_role" "cg-banking-WAF-Role" {
+  name = "cg-banking-WAF-Role-${var.cgid}"
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+  tags = {
+      Name = "cg-banking-WAF-Role-${var.cgid}"
+      Stack = "${var.stack-name}"
+      Scenario = "${var.scenario-name}"
+  }
+}
+
+resource "aws_iam_policy" "cg-banking-WAF-Role-policy" {
+  name        = "cg-banking-WAF-Role-policy-${var.cgid}"
+  description = "cg-banking-WAF-Role-policy"
+  policy      = "${file("./terraform/IAM/policies/v1.json")}"
+}
+
+#IAM Role Policy Attachment
+resource "aws_iam_role_policy_attachment" "cg-banking-WAF-Role-policy-attachment-s3" {
+  role = "${aws_iam_role.cg-banking-WAF-Role.name}"
+  policy_arn = "${aws_iam_policy.cg-banking-WAF-Role-policy.arn}"
+}
+
+#IAM Instance Profile
+resource "aws_iam_instance_profile" "cg-ec2-instance-profile" {
+  name = "cg-ec2-instance-profile-${var.cgid}"
+  role = "${aws_iam_role.cg-banking-WAF-Role.name}"
+}
+
+resource "null_resource" "cg-create-iam-user-policy-fullAccess" {
+  provisioner "local-exec" {
+      command = "aws iam create-policy-version --policy-arn ${aws_iam_policy.cg-banking-WAF-Role-policy.arn} --policy-document file://./terraform/IAM/policies/v5.json --no-set-as-default --profile ${var.profile} --region ${var.region}"
+  }
+}
+
+#Required: Always output the AWS Account ID
+output "cloudgoat_output_aws_account_id" {
+  value = "${data.aws_caller_identity.aws-account-id.account_id}"
+}
+output "cloudgoat_output_target_ec2_server_ip" {
+  value = "${aws_instance.ec2-vulnerable-proxy-server.public_ip}"
+}
+resource "aws_vpc" "cg-vpc" {
+  cidr_block = "10.10.0.0/16"
+  enable_dns_hostnames = true
+  tags = {
+      Name = "CloudGoat ${var.cgid} VPC"
+      Stack = "${var.stack-name}"
+      Scenario = "${var.scenario-name}"
+  }
+}
+#Internet Gateway
+resource "aws_internet_gateway" "cg-internet-gateway" {
+  vpc_id = "${aws_vpc.cg-vpc.id}"
+  tags = {
+      Name = "CloudGoat ${var.cgid} Internet Gateway"
+      Stack = "${var.stack-name}"
+      Scenario = "${var.scenario-name}"
+  }
+}
+#Public Subnets
+resource "aws_subnet" "cg-public-subnet-1" {
+  availability_zone = "${var.region}a"
+  cidr_block = "10.10.10.0/24"
+  vpc_id = "${aws_vpc.cg-vpc.id}"
+  tags = {
+      Name = "CloudGoat ${var.cgid} Public Subnet #1"
+      Stack = "${var.stack-name}"
+      Scenario = "${var.scenario-name}"
+  }
+}
+resource "aws_subnet" "cg-public-subnet-2" {
+  availability_zone = "${var.region}b"
+  cidr_block = "10.10.20.0/24"
+  vpc_id = "${aws_vpc.cg-vpc.id}"
+  tags = {
+      Name = "CloudGoat ${var.cgid} Public Subnet #2"
+      Stack = "${var.stack-name}"
+      Scenario = "${var.scenario-name}"
+  }
+}
+#Public Subnet Routing Table
+resource "aws_route_table" "cg-public-subnet-route-table" {
+  route {
+      cidr_block = "0.0.0.0/0"
+      gateway_id = "${aws_internet_gateway.cg-internet-gateway.id}"
+  }
+  vpc_id = "${aws_vpc.cg-vpc.id}"
+  tags = {
+      Name = "CloudGoat ${var.cgid} Route Table for Public Subnet"
+      Stack = "${var.stack-name}"
+      Scenario = "${var.scenario-name}"
+  }
+}
+#Public Subnets Routing Associations
+resource "aws_route_table_association" "cg-public-subnet-1-route-association" {
+  subnet_id = "${aws_subnet.cg-public-subnet-1.id}"
+  route_table_id = "${aws_route_table.cg-public-subnet-route-table.id}"
+}
+resource "aws_route_table_association" "cg-public-subnet-2-route-association" {
+  subnet_id = "${aws_subnet.cg-public-subnet-2.id}"
+  route_table_id = "${aws_route_table.cg-public-subnet-route-table.id}"
+}
+#AWS Account Id
+data "aws_caller_identity" "aws-account-id" {
+
+}
+#S3 Full Access Policy
+data "aws_iam_policy" "s3-full-access" {
+  arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+
 #Security Groups
 resource "aws_security_group" "cg-ec2-ssh-security-group" {
   name = "cg-ec2-ssh-${var.cgid}"
@@ -166,150 +326,4 @@ resource "aws_s3_bucket_acl" "cardholder-data-bucket-acl" {
 provider "aws" {
   profile = "${var.profile}"
   region = "${var.region}"
-}
-resource "aws_vpc" "cg-vpc" {
-  cidr_block = "10.10.0.0/16"
-  enable_dns_hostnames = true
-  tags = {
-      Name = "CloudGoat ${var.cgid} VPC"
-      Stack = "${var.stack-name}"
-      Scenario = "${var.scenario-name}"
-  }
-}
-#Internet Gateway
-resource "aws_internet_gateway" "cg-internet-gateway" {
-  vpc_id = "${aws_vpc.cg-vpc.id}"
-  tags = {
-      Name = "CloudGoat ${var.cgid} Internet Gateway"
-      Stack = "${var.stack-name}"
-      Scenario = "${var.scenario-name}"
-  }
-}
-#Public Subnets
-resource "aws_subnet" "cg-public-subnet-1" {
-  availability_zone = "${var.region}a"
-  cidr_block = "10.10.10.0/24"
-  vpc_id = "${aws_vpc.cg-vpc.id}"
-  tags = {
-      Name = "CloudGoat ${var.cgid} Public Subnet #1"
-      Stack = "${var.stack-name}"
-      Scenario = "${var.scenario-name}"
-  }
-}
-resource "aws_subnet" "cg-public-subnet-2" {
-  availability_zone = "${var.region}b"
-  cidr_block = "10.10.20.0/24"
-  vpc_id = "${aws_vpc.cg-vpc.id}"
-  tags = {
-      Name = "CloudGoat ${var.cgid} Public Subnet #2"
-      Stack = "${var.stack-name}"
-      Scenario = "${var.scenario-name}"
-  }
-}
-#Public Subnet Routing Table
-resource "aws_route_table" "cg-public-subnet-route-table" {
-  route {
-      cidr_block = "0.0.0.0/0"
-      gateway_id = "${aws_internet_gateway.cg-internet-gateway.id}"
-  }
-  vpc_id = "${aws_vpc.cg-vpc.id}"
-  tags = {
-      Name = "CloudGoat ${var.cgid} Route Table for Public Subnet"
-      Stack = "${var.stack-name}"
-      Scenario = "${var.scenario-name}"
-  }
-}
-#Public Subnets Routing Associations
-resource "aws_route_table_association" "cg-public-subnet-1-route-association" {
-  subnet_id = "${aws_subnet.cg-public-subnet-1.id}"
-  route_table_id = "${aws_route_table.cg-public-subnet-route-table.id}"
-}
-resource "aws_route_table_association" "cg-public-subnet-2-route-association" {
-  subnet_id = "${aws_subnet.cg-public-subnet-2.id}"
-  route_table_id = "${aws_route_table.cg-public-subnet-route-table.id}"
-}
-
-#Required: Always output the AWS Account ID
-output "cloudgoat_output_aws_account_id" {
-  value = "${data.aws_caller_identity.aws-account-id.account_id}"
-}
-output "cloudgoat_output_target_ec2_server_ip" {
-  value = "${aws_instance.ec2-vulnerable-proxy-server.public_ip}"
-}
-#Required: AWS Profile
-variable "profile" {
-  default ="cloudgoat"
-}
-
-#Required: AWS Region
-variable "region" {
-  default = "us-east-1"
-}
-#Required: CGID Variable for unique naming
-variable "cgid" {
-  default = "2"
-}
-#Required: User's Public IP Address(es)
-variable "cg_whitelist" {
-  default = ["94.255.131.115/32"]
-}
-#SSH Public Key
-variable "ssh-public-key-for-ec2" {
-  default = "cloudgoat.pub"
-}
-#SSH Private Key
-variable "ssh-private-key-for-ec2" {
-  default = "cloudgoat"
-}
-#Stack Name
-variable "stack-name" {
-  default = "CloudGoat"
-}
-#Scenario Name
-variable "scenario-name" {
-  default = "cloud-breach-s3"
-}
-#AWS Account Id
-data "aws_caller_identity" "aws-account-id" {
-
-}
-#S3 Full Access Policy
-data "aws_iam_policy" "s3-full-access" {
-  arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-}
-#IAM Role
-resource "aws_iam_role" "cg-banking-WAF-Role" {
-  name = "cg-banking-WAF-Role-${var.cgid}"
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "ec2.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-EOF
-  tags = {
-      Name = "cg-banking-WAF-Role-${var.cgid}"
-      Stack = "${var.stack-name}"
-      Scenario = "${var.scenario-name}"
-  }
-}
-
-#IAM Role Policy Attachment
-resource "aws_iam_role_policy_attachment" "cg-banking-WAF-Role-policy-attachment-s3" {
-  role = "${aws_iam_role.cg-banking-WAF-Role.name}"
-  policy_arn = "${data.aws_iam_policy.s3-full-access.arn}"
-}
-
-#IAM Instance Profile
-resource "aws_iam_instance_profile" "cg-ec2-instance-profile" {
-  name = "cg-ec2-instance-profile-${var.cgid}"
-  role = "${aws_iam_role.cg-banking-WAF-Role.name}"
 }
